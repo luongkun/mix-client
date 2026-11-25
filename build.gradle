@@ -1,0 +1,290 @@
+buildscript {
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net/' }
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.1-SNAPSHOT'
+        classpath 'org.spongepowered:mixingradle:0.6-SNAPSHOT'
+    }
+}
+
+apply plugin: 'net.minecraftforge.gradle.forge'
+apply plugin: 'org.spongepowered.mixin'
+apply plugin: 'java'
+
+/* client build version — this is what the launcher's updater compares, and what
+   ends up in build/dist/version.json (the launcher shell has its own version in
+   launcher-desktop/package.json) */
+version = '1.8.2'
+group = 'mix.client'
+archivesBaseName = 'MixClient'
+
+sourceCompatibility = targetCompatibility = '1.8'
+compileJava.options.encoding = 'UTF-8'
+compileJava.options.compilerArgs << '-XDignore.symbol.file' << '-Xlint:none'
+
+minecraft {
+    version = '1.8.9-11.15.1.2318-1.8.9'
+    runDir = 'run'
+    mappings = 'stable_22'
+}
+
+sourceSets {
+    launcher {
+        java.srcDirs = ['src/launcher/java']
+        resources.srcDirs = ['src/launcher/resources']
+    }
+}
+
+repositories {
+    maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+    maven { url = 'https://maven.minecraftforge.net/' }
+    maven { url = 'https://libraries.minecraft.net/' }
+    mavenCentral()
+}
+
+configurations {
+    launcherLibs {
+        transitive = false
+    }
+    deobfTool
+    widenTool
+}
+
+dependencies {
+    /* MixUI's bundled libraries (NanoVG bindings, viaversion, jcef) */
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+    compile 'net.minecraft:launchwrapper:1.12'
+    compile 'org.spongepowered:mixin:0.7.11-SNAPSHOT'
+    /* MixUI's LWJGL compatibility transformer uses ASM tree. */
+    compile 'org.ow2.asm:asm-all:5.0.3'
+
+    launcherCompile 'com.google.code.gson:gson:2.8.9'
+
+    launcherLibs 'net.minecraft:launchwrapper:1.12'
+    launcherLibs 'org.spongepowered:mixin:0.7.11-SNAPSHOT'
+    launcherLibs 'org.ow2.asm:asm:7.2'
+    launcherLibs 'org.ow2.asm:asm-commons:7.2'
+    launcherLibs 'org.ow2.asm:asm-tree:7.2'
+    launcherLibs 'org.ow2.asm:asm-util:7.2'
+    launcherLibs 'org.ow2.asm:asm-analysis:7.2'
+
+    deobfTool 'net.md-5:SpecialSource:1.8.5'
+    widenTool 'org.ow2.asm:asm:7.2'
+}
+
+mixin {
+    add sourceSets.main, 'mixclient.refmap.json'
+}
+
+jar {
+    manifest {
+        attributes(
+            'TweakClass': 'mix.client.bootstrap.MixTweaker',
+            'MixinConfigs': 'mixclient.bootstrap.json',
+            'Implementation-Title': 'Mix Client',
+            'Implementation-Version': project.version
+        )
+    }
+}
+
+task launcherJar(type: Jar, dependsOn: 'launcherClasses') {
+    archiveName = 'MixClient-Launcher.jar'
+    from sourceSets.launcher.output
+    from(configurations.launcherRuntime.collect { it.isDirectory() ? it : zipTree(it) }) {
+        exclude 'META-INF/MANIFEST.MF', 'META-INF/*.SF', 'META-INF/*.RSA', 'META-INF/*.DSA'
+    }
+    manifest {
+        attributes(
+            'Main-Class': 'mix.launcher.LauncherMain',
+            'Implementation-Title': 'Mix Client Launcher',
+            'Implementation-Version': project.version
+        )
+    }
+}
+
+task copyLauncherLibs(type: Copy) {
+    doFirst {
+        delete "$buildDir/dist/lib"
+    }
+    from configurations.launcherLibs
+    /* Mix Client's bundled libraries (lwjgl3 + NanoVG, ViaVersion/ViaBackwards/ViaRewind,
+       jcef, joml, caffeine, commons-lang3, Java-WebSocket, snakeyaml, slf4j-api,
+       jfxrt/jfxswt, dango). GameLauncher puts every jar in dist/lib on the game
+       classpath, so these ship next to asm/mixin/launchwrapper. */
+    from 'libs'
+    into "$buildDir/dist/lib"
+}
+
+task copyClientJar(type: Copy, dependsOn: 'jar') {
+    from "$buildDir/libs"
+    include "MixClient-${project.version}.jar"
+    into "$buildDir/dist"
+    rename '(.*)\\.jar', 'MixClient.jar'
+}
+
+/* OptiFine ships with the build: the launcher runs it from dist/optifine, so a
+   machine that never installed OptiFine still gets it. */
+task copyOptiFine(type: Copy) {
+    from 'optifine'
+    include '*.jar'
+    into "$buildDir/dist/optifine"
+}
+
+task copyLauncherJar(type: Copy, dependsOn: 'launcherJar') {
+    from "$buildDir/libs"
+    include 'MixClient-Launcher.jar'
+    into "$buildDir/dist"
+}
+
+task deobfClient(type: JavaExec) {
+    def appData = System.getenv('APPDATA') ?: new File(System.getProperty('user.home'), 'AppData/Roaming').absolutePath
+    def mcJar = new File(appData, '.minecraft/versions/1.8.9/1.8.9.jar')
+    def srg = new File(System.getProperty('user.home'), '.gradle/caches/minecraft/de/oceanlabs/mcp/mcp_stable/22/srgs/notch-mcp.srg')
+    def out = file("$buildDir/dist/minecraft-1.8.9-mcp.jar")
+    classpath = configurations.deobfTool
+    main = 'net.md_5.specialsource.SpecialSource'
+    args '--in-jar', mcJar.absolutePath, '--out-jar', out.absolutePath, '--srg-in', srg.absolutePath
+    doFirst {
+        if (!mcJar.isFile()) {
+            throw new GradleException("Missing Minecraft 1.8.9 client jar: " + mcJar)
+        }
+        if (!srg.isFile()) {
+            throw new GradleException("Missing MCP mappings: " + srg + " (run setupDecompWorkspace first)")
+        }
+        out.parentFile.mkdirs()
+    }
+}
+
+task compileAccessWidener(type: JavaCompile) {
+    source = fileTree('src/tools/java')
+    classpath = configurations.widenTool
+    destinationDir = file("$buildDir/tools/accesswidener")
+    sourceCompatibility = '1.8'
+    targetCompatibility = '1.8'
+    options.encoding = 'UTF-8'
+}
+
+task widenClientJar(type: JavaExec, dependsOn: ['deobfClient', 'compileAccessWidener']) {
+    def raw = file("$buildDir/dist/minecraft-1.8.9-mcp.jar")
+    def widened = file("$buildDir/dist/minecraft-1.8.9-mcp-widened.jar")
+    classpath = files("$buildDir/tools/accesswidener") + configurations.widenTool
+    main = 'mix.tools.AccessWidener'
+    args raw.absolutePath, widened.absolutePath
+    doLast {
+        if (!widened.isFile() || widened.length() < 1024L) {
+            throw new GradleException('Access widener did not produce a jar')
+        }
+        copy {
+            from widened
+            into widened.parentFile
+            rename widened.name, raw.name
+        }
+        delete widened
+    }
+}
+
+task remapClientNotch(type: JavaExec, dependsOn: ['copyClientJar', 'widenClientJar']) {
+    def mapping = new File(System.getProperty('user.home'), '.gradle/caches/minecraft/de/oceanlabs/mcp/mcp_stable/22/srgs/mcp-notch.srg')
+    def input = file("$buildDir/dist/MixClient.jar")
+    def output = file("$buildDir/dist/MixClient-notch.jar")
+    def mcpJar = file("$buildDir/dist/minecraft-1.8.9-mcp.jar")
+    classpath = configurations.deobfTool + files(mcpJar)
+    main = 'net.md_5.specialsource.SpecialSource'
+    args '--in-jar', input.absolutePath, '--out-jar', output.absolutePath, '--srg-in', mapping.absolutePath, '--live'
+    doFirst {
+        if (!mapping.isFile()) throw new GradleException("Missing MCP mapping: " + mapping)
+    }
+}
+
+/* DangoMusic ships as an MCP-named jar (libs/dango-mix.jar). Forge deobfuscates
+   vanilla to SRG, so every MCP member reference in those classes fails to link
+   there -- Mix.start() threw NoSuchMethodError on Minecraft.getMinecraft() and
+   the music module never started (while OptiFine/plain launch, which use the
+   MCP client jar, were fine). MixClient-srg.jar solves this for the client
+   itself; this produces the matching SRG copy of Dango for Forge mode. */
+task remapDangoSrg(type: JavaExec, dependsOn: 'widenClientJar') {
+    def input = file('libs/dango-mix.jar')
+    def mapping = file('tools/mapping/mcp-srg.srg')
+    def mcpJar = file("$buildDir/dist/minecraft-1.8.9-mcp.jar")
+    /* Kept out of dist/lib: every non-Forge mode adds the whole lib folder, and
+       a second Dango copy there would shadow the MCP one unpredictably. */
+    def output = file("$buildDir/dist/dango-mix-srg.jar")
+    classpath = configurations.deobfTool + files(mcpJar)
+    main = 'net.md_5.specialsource.SpecialSource'
+    args '--in-jar', input.absolutePath, '--out-jar', output.absolutePath,
+            '--srg-in', mapping.absolutePath, '--live'
+    doFirst {
+        if (!input.isFile()) throw new GradleException("Missing Dango jar: " + input)
+        if (!mapping.isFile()) throw new GradleException("Missing MCP mapping: " + mapping)
+        if (!mcpJar.isFile()) throw new GradleException("Missing MCP client jar: " + mcpJar + " (run gradlew dist)")
+        output.parentFile.mkdirs()
+    }
+}
+
+/* SpecialSource remaps the mixins' references but leaves every @Shadow
+   declaration and @Overwrite handler under its deobfuscated name, so Mixin cannot
+   find them on an obfuscated class. Two variants come out of the same remap:
+     - MixClient-notch.jar  (notch names)  -> OptiFine / plain launch
+     - MixClient-srg.jar    (searge names) -> Forge, which deobfuscates vanilla to SRG
+   Both are derived from the pristine SpecialSource output, so neither compounds
+   the other's renames. */
+task remapShadowsSrg(type: JavaExec, dependsOn: ['remapClientNotch', 'copyLauncherLibs']) {
+    def toolDir = file("$buildDir/shadow-tool")
+    def mappings = file('tools/mapping')
+    def notchJar = file("$buildDir/dist/MixClient-notch.jar")
+    def outJar = file("$buildDir/dist/MixClient-srg.jar")
+    def asmJars = ['asm-7.2.jar', 'asm-tree-7.2.jar'].collect { file("$buildDir/dist/lib/$it") }
+    classpath = files(toolDir) + files(asmJars)
+    main = 'mix.tools.ShadowRemapper'
+    args notchJar.absolutePath, outJar.absolutePath, mappings.absolutePath, 'srg', 'mix/client/mixui/injection/'
+    doFirst {
+        if (!asmJars.every { it.isFile() }) throw new GradleException("Missing ASM jars in dist/lib: " + asmJars)
+        mkdir toolDir
+        def cp = asmJars.collect { it.absolutePath }.join(File.pathSeparator)
+        exec {
+            commandLine 'javac', '-source', '8', '-target', '8', '-cp', cp,
+                    '-d', toolDir.absolutePath,
+                    file('tools/java/mix/tools/ShadowRemapper.java').absolutePath
+        }
+    }
+}
+
+task remapShadowsNotch(type: JavaExec, dependsOn: 'remapShadowsSrg') {
+    def toolDir = file("$buildDir/shadow-tool")
+    def mappings = file('tools/mapping')
+    def notchJar = file("$buildDir/dist/MixClient-notch.jar")
+    def asmJars = ['asm-7.2.jar', 'asm-tree-7.2.jar'].collect { file("$buildDir/dist/lib/$it") }
+    classpath = files(toolDir) + files(asmJars)
+    main = 'mix.tools.ShadowRemapper'
+    args notchJar.absolutePath, notchJar.absolutePath, mappings.absolutePath, 'notch', 'mix/client/mixui/injection/'
+    doFirst {
+        if (!toolDir.isDirectory()) throw new GradleException("ShadowRemapper was not compiled")
+    }
+}
+
+task dist(dependsOn: ['copyClientJar', 'copyLauncherLibs', 'copyLauncherJar', 'copyOptiFine', 'widenClientJar', 'remapShadowsNotch', 'remapDangoSrg']) {
+    doLast {
+        def versionFile = file("$buildDir/dist/version.json")
+        versionFile.text = groovy.json.JsonOutput.toJson([version: project.version, builtAt: System.currentTimeMillis()])
+        println "Distribution ready: ${file("$buildDir/dist").absolutePath}"
+    }
+}
+
+task smokeTest(type: JavaExec, dependsOn: 'dist') {
+    classpath = files("$buildDir/dist/MixClient-Launcher.jar")
+    main = 'mix.launcher.LauncherMain'
+    jvmArgs = ['-Dfile.encoding=UTF-8']
+    args '--smoke-test'
+}
+
+/* Forge mode: FML has to be installed in .minecraft first (the launcher does
+   that on the first Play with Forge on), and mods load from .mixclient/smoke/mods */
+task smokeForge(type: JavaExec, dependsOn: 'dist') {
+    classpath = files("$buildDir/dist/MixClient-Launcher.jar")
+    main = 'mix.launcher.LauncherMain'
+    jvmArgs = ['-Dfile.encoding=UTF-8']
+    args '--forge-smoke'
+}

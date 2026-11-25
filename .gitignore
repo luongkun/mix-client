@@ -1,0 +1,64 @@
+# --- Gradle / build output ---
+.gradle/
+build/
+run/
+
+# --- Java ---
+*.class
+hs_err_pid*
+
+# --- Launcher Electron (launcher-desktop) ---
+node_modules/
+release/
+release-*/
+dist/
+jre/
+*.log
+
+# --- Mix Client's bundled libraries (compile-time deps for mix.client.mixui:
+#     lwjgl3 + NanoVG, ViaVersion/ViaBackwards/ViaRewind, jcef, joml, caffeine,
+#     commons-lang3, Java-WebSocket, snakeyaml, slf4j-api, jfxrt/jfxswt).
+#     Committed so the tree compiles as one source set with no external
+#     dependency. ---
+# libs/   (tracked — do not ignore)
+
+# --- Dead Badlion-port tooling (HANDOFF §13.1, kept on disk, not in git;
+#     contains case-only filename pairs git cannot index on this FS) ---
+tools/badlion/
+tools/badlion-decompile/
+tools/badlion-stubs/
+tools/badlion-support/
+tools/port-badlion.ps1
+tools/badlion-bridge-patches.json
+tools/*.js
+
+# --- Decompiled Badlion reference trees (large, third-party) ---
+reference/
+
+# --- Local tool state / attachments ---
+.freebuff/
+.cloud-attachments/
+.workbuddy-ai/
+
+# --- AI-generated reference mockups ---
+vibe_images/
+
+# --- OptiFine test copy ---
+optifine/
+
+# --- OS junk ---
+Thumbs.db
+.DS_Store
+
+# --- Logs and temp files at the project root ---
+*.log
+*.tmp
+
+# Local packaging checks and reference screenshots
+/launcher-desktop/dist-check/
+/launcher-desktop/release2/
+/launcher-desktop/vite.config.js.timestamp-*.mjs
+/Account
+/home
+/launcher-home.png
+/.tmp/

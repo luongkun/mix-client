@@ -1,0 +1,91 @@
+{
+  "name": "mixclient-launcher",
+  "private": true,
+  "version": "1.9.7",
+  "description": "Mix Client desktop launcher",
+  "author": "Mix Client",
+  "type": "module",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "start": "electron .",
+    "app": "vite build && electron .",
+    "icon": "powershell -NoProfile -ExecutionPolicy Bypass -File build/make-icon.ps1",
+    "pack": "node ../tools/release.mjs --dir",
+    "dist:win": "node ../tools/release.mjs",
+    "release:prepare": "node ../tools/release.mjs --prepare-only",
+    "smoke:matrix": "node ../tools/smoke-matrix.mjs",
+    "manifest": "node ../tools/make-update-manifest.mjs"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "lucide-react": "^1.75.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "skinview3d": "^3.4.2",
+    "tailwindcss": "^4.3.5",
+    "three": "^0.187.0",
+    "vite": "^5.4.11"
+  },
+  "build": {
+    "appId": "com.mixclient.launcher",
+    "productName": "Mix Client",
+    "copyright": "Copyright \u00a9 2026 Mix Client",
+    "afterPack": "build/afterPack.cjs",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../build/dist",
+        "to": "dist"
+      },
+      {
+        "from": "jre",
+        "to": "jre"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "executableName": "MixClient",
+      "signAndEditExecutable": false,
+      "artifactName": "MixClient-Setup-${version}.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Mix Client",
+      "menuCategory": false,
+      "license": "build/license.txt",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "uninstallDisplayName": "Mix Client",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "MixClient-Setup-${version}.exe"
+    }
+  }
+}

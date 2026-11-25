@@ -1,0 +1,150 @@
+/* `source(none)` turns off automatic content detection: the plugin would
+   otherwise also read the previous build in dist/ (and any release folder), and
+   re-emit utility classes for colour literals the views no longer use. */
+@import 'tailwindcss' source(none);
+@source './**/*.{jsx,tsx,js,ts}';
+
+/* Mix Client design system.
+   The palette is the in-game theme, not a separate launcher skin: the Dark
+   theme's neutral surfaces (#131314 / #222327) and the "Default" accent mint
+   (#AAFFA9 -> #11FFBD) are the same values the client renders with, so the
+   launcher and the game read as one product. Type is MiSans, the face the
+   in-game UI uses. */
+
+/* MiSans carries both voices now: it is the client's own UI face, subset to
+   Latin + Vietnamese so the launcher stays small. */
+@font-face {
+  font-family: 'MiSans';
+  src: url('./fonts/MiSans-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'MiSans';
+  src: url('./fonts/MiSans-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'MiSans';
+  src: url('./fonts/MiSans-Demibold.ttf') format('truetype');
+  font-weight: 600 900;
+  font-display: swap;
+}
+
+/* Kept so an older build of the launcher that still references them keeps
+   resolving, and so any view that names them explicitly does not fall back to
+   a system face. */
+@font-face {
+  font-family: 'Montserrat';
+  src: url('./fonts/Montserrat.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Archivo';
+  src: url('./fonts/Archivo.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter Var';
+  src: url('./fonts/Inter.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Barlow Condensed';
+  src: url('./fonts/BarlowCondensed-600.ttf') format('truetype');
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Barlow Condensed';
+  src: url('./fonts/BarlowCondensed-700.ttf') format('truetype');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('./fonts/Inter-400.ttf') format('truetype');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('./fonts/Inter-500.ttf') format('truetype');
+  font-weight: 500;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('./fonts/Inter-600.ttf') format('truetype');
+  font-weight: 600;
+}
+
+@theme {
+  /* Theme.DARK in mix.client.mixui.management.color.Theme */
+  --color-canvas: #131314;
+  --color-surface: #1b1b1e;
+  --color-elevated: #222327;
+  --color-hover: #2b2b30;
+  --color-line: rgba(255, 255, 255, 0.07);
+  --color-line-soft: rgba(255, 255, 255, 0.05);
+  /* AccentColor "Default": #AAFFA9 -> #11FFBD, the client's default gradient */
+  --color-accent: #aaff9f;
+  --color-accent-soft: rgba(170, 255, 169, 0.14);
+  --color-accent-text: #11ffbd;
+  --color-ink: #ffffff;
+  --color-ink-2: #ebebeb;
+  --color-ink-3: #9a9a9e;
+  --color-placeholder: var(--color-ink-3);
+  --color-online: #11ffbd;
+
+  /* MiSans for both roles: it is what the in-game UI is set in. */
+  --font-sans: 'MiSans', 'Inter', 'Inter Var', system-ui, sans-serif;
+  --font-display: 'MiSans', 'Montserrat', 'Barlow Condensed', sans-serif;
+
+  --radius-card: 16px;
+  --radius-control: 10px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  overflow: hidden;
+  user-select: none;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #2b2b30;
+  border-radius: 8px;
+  border: 3px solid var(--color-canvas);
+}
+
+@utility page-title {
+  font-family: var(--font-display);
+  font-size: 23px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1;
+}
